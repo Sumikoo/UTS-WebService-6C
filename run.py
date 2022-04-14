@@ -21,23 +21,24 @@ class Users(db.Model):
     token = db.Column(db.String(100), unique=False)
 
 class Events(db.Model):
-    event_creator = db.Column(db.String(20))
-    event_name = db.Column(db.String(20), unique=True, nullable=False, primary_key=True)
-    event_start_time = db.Column(db.DateTime)
-    event_end_time = db.Column(db.DateTime)
-    event_start_lat = db.Column(db.String(20))
-    event_finish_lat = db.Column(db.String(20))
-    event_start_lng = db.Column(db.String(20))
-    event_finish_lng = db.Column(db.String(20))
-    created_at = db.Column(db.DateTime)
+    id = db.Column(db.Integer, primary_key=True)
+    event_creator = db.Column(db.String(20), nullable=False)
+    event_name = db.Column(db.String(20), nullable=False)
+    event_start_time = db.Column(db.DateTime, nullable=False)
+    event_end_time = db.Column(db.DateTime, nullable=False)
+    event_start_lat = db.Column(db.String(20), nullable=False)
+    event_finish_lat = db.Column(db.String(20), nullable=False)
+    event_start_lng = db.Column(db.String(20), nullable=False)
+    event_finish_lng = db.Column(db.String(20), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False)
 
 class Logs(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(20))
-    event_name = db.Column(db.String(20))
-    log_lat = db.Column(db.String(20))
-    log_lng = db.Column(db.String(20))
-    created_at = db.Column(db.DateTime)
+    username = db.Column(db.String(20), nullable=False)
+    event_name = db.Column(db.String(20), nullable=False)
+    log_lat = db.Column(db.String(20), nullable=False)
+    log_lng = db.Column(db.String(20), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False)
 
 db.create_all()
 
@@ -85,15 +86,15 @@ def event():
     event_finish_lat = request.json['event_finish_lat']
     event_finish_lng = request.json['event_finish_lng']
 
-    est = datetime.datetime.strptime(event_start_time, '%Y-%m-%d %H:%M:%S') 
-    eet = datetime.datetime.strptime(event_end_time, '%Y-%m-%d %H:%M:%S') 
+    est = datetime.datetime.strptime(event_start_time, '%Y-%m-%d %H:%M') 
+    eet = datetime.datetime.strptime(event_end_time, '%Y-%m-%d %H:%M') 
     user = Users.query.filter_by(token=token).first()
     if user:
         time = datetime.datetime.utcnow()
         event = Events(event_creator=user.username, event_name=event_name, event_start_time=est, event_end_time=eet, event_start_lat=event_start_lat, event_finish_lat=event_finish_lat, event_start_lng=event_start_lng, event_finish_lng=event_finish_lng,created_at=time)
         db.session.add(event)
         db.session.commit()
-        return make_response(jsonify({"msg": "Membuat event sukses", "username":user.username, "time":time}))
+        return make_response(jsonify({"msg": "Membuat event sukses"}))
     return make_response(jsonify({"msg":"Token invalid"}))
 
 
@@ -124,8 +125,15 @@ def log():
 
     user = Users.query.filter_by(token=token).first()
     if user:
-        logs = Logs.query.filter_by(event_name=event_name).all()
-        return make_response(logs)
+        array_logs = []
+        logs = Logs.query.all()
+        for log in logs:
+            if log.event_name == event_name:
+                dict_logs = {}
+                dict_logs.update({"username": log.username, "log_lat": log.log_lat, "log_lng": log.log_lng, "created_at":log.created_at})
+                array_logs.append(dict_logs)
+        return make_response(jsonify(array_logs), 200, {'content-type':'application/json'})
+    return make_response(jsonify({"msg":"Token invalid"}))
 
 if __name__ == '__main__':
    app.run(debug = True, port=5000)
