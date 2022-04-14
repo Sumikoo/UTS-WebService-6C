@@ -1,12 +1,11 @@
-# 
-# 
+# M Satria Jalasena - 19090090 - 6C
+# Satya Faqikhatul Maroh - 19090030 - 6C
 # Nur khafidah - 19090075 - 6C
-# 
+# Arsyad Abdillah - 19090134 - 6C
 
 from flask import Flask, request, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
-import os, random, string
+import datetime, random, string
 
 
 database_file = 'sqlite:///database/uts-tour.db'
@@ -24,14 +23,15 @@ class Users(db.Model):
 class Events(db.Model):
     event_creator = db.Column(db.String(20))
     event_name = db.Column(db.String(20), unique=True, nullable=False, primary_key=True)
-    event_start_time = db.Column(db.Date)
+    event_start_time = db.Column(db.DateTime)
     event_end_time = db.Column(db.DateTime)
     event_start_lat = db.Column(db.String(20))
     event_finish_lat = db.Column(db.String(20))
+    event_start_lng = db.Column(db.String(20))
     event_finish_lng = db.Column(db.String(20))
-    created_at = db.Column(db.Date)
+    created_at = db.Column(db.DateTime)
 
-class Log(db.Model):
+class Logs(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(20))
     event_name = db.Column(db.String(20))
@@ -64,7 +64,7 @@ def login():
     if username and password:
         user = Users.query.filter_by(username=username, password=password).first()
         if user:
-            token = ''.join(random.choices(string.ascii_uppercase + string.digits, k=20))
+            token = ''.join(random.choices(string.ascii_lowercase + string.digits, k=25))
             Users.query.filter_by(username=username, password=password).update({'token':token})
             db.session.commit()
             return make_response(jsonify({"msg": "Login sukses", "token":token}))
@@ -85,23 +85,47 @@ def event():
     event_finish_lat = request.json['event_finish_lat']
     event_finish_lng = request.json['event_finish_lng']
 
-    est = datetime.strptime(event_start_time, '%Y-%m-%d %H:%M')
-    eet = datetime.strptime(event_end_time, '%Y-%m-%d %H:%M')
+    est = datetime.datetime.strptime(event_start_time, '%Y-%m-%d %H:%M:%S') 
+    eet = datetime.datetime.strptime(event_end_time, '%Y-%m-%d %H:%M:%S') 
     user = Users.query.filter_by(token=token).first()
     if user:
         time = datetime.datetime.utcnow()
-        event = Events(event_creator=user.username, event_name=event_name, event_start_time=est, event_end_time=eet, event_start_lat=event_start_lat, event_finish_lat=event_finish_lat, event_finish_lng=event_finish_lng,created_at=time)
+        event = Events(event_creator=user.username, event_name=event_name, event_start_time=est, event_end_time=eet, event_start_lat=event_start_lat, event_finish_lat=event_finish_lat, event_start_lng=event_start_lng, event_finish_lng=event_finish_lng,created_at=time)
         db.session.add(event)
         db.session.commit()
-        return make_response(jsonify({"msg": "Success", "username":user.username, "time":time}))
-    return make_response(jsonify({"msg":"Failed"}))
+        return make_response(jsonify({"msg": "Membuat event sukses", "username":user.username, "time":time}))
+    return make_response(jsonify({"msg":"Token invalid"}))
 
 
-# Create event
+# Create log event
 # http://127.0.0.1:5000/api/v1/events/log
-# @app.route("/api/v1/events/log", methods=["POST"])
-# def log():
+@app.route("/api/v1/events/log", methods=["POST"])
+def log_event():
+    token = request.json['token']
+    event_name = request.json['event_name']
+    log_lat = request.json['log_lat']
+    log_lng = request.json['log_lng']
+    time = datetime.datetime.utcnow()
+    
+    user = Users.query.filter_by(token=token).first()
+    if user:
+        logging = Logs(username=user.username, event_name=event_name, log_lat=log_lat, log_lng=log_lng, created_at=time)
+        db.session.add(logging)
+        db.session.commit()
+        return make_response(jsonify({"msg":"Sukses mencatat posisi baru"}))
+    return make_response(jsonify({"msg":"Token invalid"}))
 
+# Create log event
+# http://127.0.0.1:5000/api/v1/events/logs
+@app.route("/api/v1/events/logs", methods=["GET"])
+def log():
+    token = request.json['token']
+    event_name = request.json['event_name']
+
+    user = Users.query.filter_by(token=token).first()
+    if user:
+        logs = Logs.query.filter_by(event_name=event_name).all()
+        return make_response(logs)
 
 if __name__ == '__main__':
    app.run(debug = True, port=5000)
